@@ -50,7 +50,7 @@ mkdir ./input/tmp
 tar -xvf $1 -C ./input/tmp/
 echo -e "\e[32;1m[*] unpacked $fileName!\e[m";
 
-# vmdk形式からraw形式に変換
+# raw形式に変換
 echo "[*] Convert from file format to raw format...";
 ## 解凍された内容を表示
 ls ./input/tmp/
@@ -66,7 +66,7 @@ do
         echo -e "\e[31;1m[!] conversion file didn't find.\e[m";
     fi
 done
-## raw形式に変換
+## raw形式に変換実行
 rawFileName=${fileName%.*}.raw
 echo "[*] Please wait...";
 qemu-img convert -f ${convert_file_name##*.} -O raw ./input/tmp/$convert_file_name ./input/tmp/$rawFileName
