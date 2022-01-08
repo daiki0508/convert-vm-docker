@@ -69,10 +69,6 @@ sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 [*] done after process!
 [*] finished!
 ```
-- Run the imported docker image.
-```bash
-$ ./run.sh
-```
 - Used when you want to return to the initial state in the event of an error.
 ```bash
 $ ./cleanup.sh
