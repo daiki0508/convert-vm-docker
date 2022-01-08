@@ -8,6 +8,12 @@
 # 例外時に処理を終了
 set -eu
 
+# 実行時に指定された引数の数、つまり変数 $# の値が 1 でなければエラー終了。
+if [ $# -ne 1 ]; then
+  echo -e "\e[31;1m[!] Not enough arguments.\e[m";
+  exit 1
+fi
+
 # root or sudo mode 選択
 while :
 do
@@ -27,17 +33,12 @@ done
 # bannerの表示
 figlet CONVERT OVA DOCKER
 
-# 実行時に指定された引数の数、つまり変数 $# の値が 1 でなければエラー終了。
-if [ $# -ne 1 ]; then
-  echo -e "\e[31;1m[!] Not enough arguments.\e[m";
-  exit 1
-fi
-
 # ファイルの存在確認
 if [ -e $1 ]; then
     echo -e "\e[32;1m[*] conversion file -> $(basename $1)\e[m";
 else
     echo -e "\e[31;1m[!] conversion file didn't exists.\e[m";
+    exit 1
 fi
 
 # ovaのファイル名を取得
@@ -50,7 +51,7 @@ tar -xvf $1 -C ./input/tmp/
 echo -e "\e[32;1m[*] unpacked $fileName!\e[m";
 
 # vmdk形式からraw形式に変換
-echo "[*] Convert from vmdk format to raw format...";
+echo "[*] Convert from file format to raw format...";
 ## 解凍された内容を表示
 ls ./input/tmp/
 ### 変換元のファイル名を入力
@@ -67,11 +68,12 @@ do
 done
 ## raw形式に変換
 rawFileName=${fileName%.*}.raw
-qemu-img convert -f ${convert_file_name##*.} -O raw $convert_file_name $rawFileName
+echo "[*] Please wait...";
+qemu-img convert -f ${convert_file_name##*.} -O raw ./input/tmp/$convert_file_name ./input/tmp/$rawFileName
 echo -e "\e[32;1m[*] Converted from vmdk format to raw format!\e[m";
 
 # rawファイルのパーティション情報を表示
-parted -s $rawFileName unit b print
+parted -s ./input/tmp/$rawFileName unit b print
 mkdir ./input/tmp/mnt
 echo -n "Enter the offset value of the disk partition you want to mount: ";
 read offset
@@ -79,12 +81,12 @@ read offset
 #rawファイルのマウント
 echo "[*] mount raw file...";
 if [ $permission = "1" ]; then
-    mount -o loop,ro,offset=$offset $rawFileName ./input/tmp/mnt
+    mount -o loop,ro,offset=$offset ./input/tmp/$rawFileName ./input/tmp/mnt
 else
     ## sudo passwordを要求
     echo -n "sudo password: "
     read password
-    echo "$password" | sudo -S mount -o loop,ro,offset=$offset $rawFileName ./input/tmp/mnt
+    echo "$password" | sudo -S mount -o loop,ro,offset=$offset ./input/tmp/$rawFileName ./input/tmp/mnt
 fi
 echo -e "\e[32;1m[*] mounted raw file!\e[m";
 
@@ -92,18 +94,18 @@ echo -e "\e[32;1m[*] mounted raw file!\e[m";
 echo "[*] output tar.gz file...";
 targzFileName=${fileName%.*}.tar.gz
 if [ $permission = "1" ]; then
-    tar -C ./input/tmp/mnt -czf $targzFileName ./output/
+    tar -C ./input/tmp/mnt -czf ./output/$targzFileName .
 else
-    echo "$password" | sudo -S tar -C ./input/tmp/mnt -czf $targzFileName ./output/
+    echo "$password" | sudo -S tar -C ./input/tmp/mnt -czf ./output/$targzFileName .
 fi
-echo -e "\e[32;1m[*] outputed tar.gz file!\e[m";
+echo -e "\e[32;1m[*] outputed tar.gz file! -> ./output/$targzFileName\e[m";
 
 # dockerイメージにインポート
 echo "[*] import docker image...";
 if [ $permission = "1" ]; then
-    docker import $targzFileName ${fileName%.*}
+    docker import ./output/$targzFileName ${fileName%.*}
 else
-    echo "$password" | sudo -S docker import $targzFileName ${fileName%.*}
+    echo "$password" | sudo -S docker import ./output/$targzFileName ${fileName%.*}
 fi
 echo -e "\e[32;1m[*] imported docker image!\e[m";
 
@@ -111,10 +113,10 @@ echo -e "\e[32;1m[*] imported docker image!\e[m";
 echo "[*] do after process...";
 if [ $permission = "1" ]; then
     umount ./input/tmp/mnt
-    rm -rf ./input/tmp/*
+    rm -r ./input/tmp
 else
     echo "$password" | sudo -S umount ./input/tmp/mnt
-    echo "$password" | sudo -S umount rm -rf ./input/tmp/*
+    echo "$password" | sudo -S rm -r ./input/tmp/
 fi
 echo -e "\e[32;1m[*] done after process!\e[m";
 
